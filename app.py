@@ -1,4 +1,3 @@
-# app.py (self-contained)
 import os
 from datetime import datetime
 
@@ -9,9 +8,6 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 
 st.set_page_config(page_title="MyMind - AI Diary Companion", layout="centered")
 
-# -----------------------------
-# session + data file
-# -----------------------------
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
@@ -30,9 +26,6 @@ MOOD_COLORS = {
     "anticipation": "#cdb4db", "determination": "#95b8d1", "joy": "#fde68a"
 }
 
-# -----------------------------
-# tiny built-in mood detector
-# -----------------------------
 def getmood(text: str):
     t = text.lower()
     rules = [
@@ -51,9 +44,6 @@ def getmood(text: str):
             return label, 0.7
     return "neutral", 0.5
 
-# -----------------------------
-# load model (CPU) with cache
-# -----------------------------
 FINETUNED_DIR = "./fine_tuned_phi2_qlora"
 BASE_ID = "microsoft/phi-2"
 
@@ -66,16 +56,16 @@ def load_model_and_tokenizer():
 
     mdl = AutoModelForCausalLM.from_pretrained(
         model_path,
-        torch_dtype=torch.float32,      # CPU-friendly
+        torch_dtype=torch.float32,      
         trust_remote_code=True,
-        device_map={"": "cpu"}          # force CPU
+        device_map={"": "cpu"}          
     )
     mdl.eval()
     return tok, mdl, (model_path == FINETUNED_DIR)
 
 tokenizer, model, using_finetuned = load_model_and_tokenizer()
 
-# show which model loaded
+
 with st.sidebar:
     st.markdown("**Model:** " + ("Fine-tuned Phi-2 ✅" if using_finetuned else "Base Phi-2"))
     st.caption(f"Path: {'./fine_tuned_phi2_qlora' if using_finetuned else 'microsoft/phi-2'}")
@@ -84,9 +74,6 @@ with st.sidebar:
     max_new = st.slider("Max new tokens", 32, 512, 180, 8)
     rep_pen = st.slider("Repetition penalty", 1.0, 2.0, 1.1, 0.01)
 
-# -----------------------------
-# prompting & generation
-# -----------------------------
 def build_prompt(user_text: str, history: list[dict], max_turns: int = 4) -> str:
     system = "You are MyMind, a warm, concise, empathetic AI diary companion."
     lines = [f"<s>[SYSTEM] {system} [/SYSTEM]"]
@@ -113,9 +100,6 @@ def generate_response(user_text: str, history: list[dict]) -> str:
     full = tokenizer.decode(out_ids[0], skip_special_tokens=True)
     return full.split("[ASSISTANT]")[-1].strip() if "[ASSISTANT]" in full else full.strip()
 
-# -----------------------------
-# UI
-# -----------------------------
 st.title("🧠 MyMind - AI Diary Companion")
 user_input = st.text_area("How are you feeling today?", height=150)
 
@@ -127,12 +111,12 @@ if st.button("Get Response"):
         reply = generate_response(user_input, st.session_state.chat_history)
         ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        # append to session
+
         st.session_state.chat_history.append(
             {"user": user_input, "bot": reply, "mood": mood, "confidence": round(conf, 2), "timestamp": ts}
         )
 
-        # log to CSV
+        
         row = {"timestamp": ts, "user_input": user_input, "mood": mood, "confidence": round(conf, 2), "response": reply}
         if os.path.exists(DATA_FILE):
             old = pd.read_csv(DATA_FILE)
@@ -140,13 +124,12 @@ if st.button("Get Response"):
         else:
             pd.DataFrame([row]).to_csv(DATA_FILE, index=False)
 
-# background color by last mood
+
 if st.session_state.chat_history:
     last = st.session_state.chat_history[-1]["mood"]
     bg = MOOD_COLORS.get(last, "#ffffff")
     st.markdown(f"<style>.stApp {{ background-color: {bg}; }}</style>", unsafe_allow_html=True)
 
-# transcript
 st.subheader("Conversation")
 for turn in st.session_state.chat_history:
     st.markdown(f"**You:** {turn['user']}")
